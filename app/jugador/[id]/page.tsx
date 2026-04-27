@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Perfil = {
@@ -21,18 +21,40 @@ type ItemCatalogo = {
   categoria: string;
 };
 
+type Transaccion = {
+  id: string;
+  perfil_id: string;
+  item_id: string;
+  fecha: string;
+  consumido: boolean;
+  consumido_en: string | null;
+};
+
+type InventarioItem = {
+  transaccionId: string;
+  itemId: string;
+  titulo: string;
+  descripcion: string;
+  imagen_url: string | null;
+  coste: number;
+  categoria: string;
+  fecha: string;
+};
+
 export default function JugadorPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [catalogo, setCatalogo] = useState<ItemCatalogo[]>([]);
+  const [transacciones, setTransacciones] = useState<Transaccion[]>([]);
   const [nombre, setNombre] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
   const [puntos, setPuntos] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
+  const [mostrarInventario, setMostrarInventario] = useState(false);
 
   async function cargarDatos() {
     setLoading(true);
@@ -41,6 +63,7 @@ export default function JugadorPage() {
     const [
       { data: perfilData, error: perfilError },
       { data: catalogoData, error: catalogoError },
+      { data: transaccionesData, error: transaccionesError },
     ] = await Promise.all([
       supabase
         .from("perfiles")
@@ -51,6 +74,11 @@ export default function JugadorPage() {
         .from("catalogo")
         .select("id, titulo, descripcion, imagen_url, coste, categoria")
         .order("categoria", { ascending: true }),
+      supabase
+        .from("transacciones")
+        .select("id, perfil_id, item_id, fecha, consumido, consumido_en")
+        .eq("perfil_id", id)
+        .order("fecha", { ascending: false }),
     ]);
 
     if (perfilError) {
@@ -65,9 +93,16 @@ export default function JugadorPage() {
       return;
     }
 
+    if (transaccionesError) {
+      setMensaje(`No se pudo cargar el inventario: ${transaccionesError.message}`);
+      setLoading(false);
+      return;
+    }
+
     const perfilCargado = perfilData as Perfil;
     setPerfil(perfilCargado);
     setCatalogo((catalogoData ?? []) as ItemCatalogo[]);
+    setTransacciones((transaccionesData ?? []) as Transaccion[]);
     setNombre(perfilCargado.nombre);
     setImagenUrl(perfilCargado.imagen_url ?? "");
     setPuntos(perfilCargado.puntos_esencia);
@@ -121,6 +156,63 @@ export default function JugadorPage() {
     setMensaje("Puntos de Esencia actualizados.");
     await cargarDatos();
   }
+
+  async function canjearItem(itemId: string) {
+    setMensaje("");
+
+    const { error } = await supabase.rpc("canjear_item", {
+      p_perfil_id: id,
+      p_item_id: itemId,
+    });
+
+    if (error) {
+      setMensaje(`No se pudo canjear el objeto: ${error.message}`);
+      return;
+    }
+
+    setMensaje("Objeto canjeado correctamente.");
+    await cargarDatos();
+  }
+
+  async function consumirItem(transaccionId: string) {
+    setMensaje("");
+
+    const { error } = await supabase.rpc("consumir_item", {
+      p_transaccion_id: transaccionId,
+      p_perfil_id: id,
+    });
+
+    if (error) {
+      setMensaje(`No se pudo retirar el objeto: ${error.message}`);
+      return;
+    }
+
+    setMensaje("Objeto retirado del inventario.");
+    await cargarDatos();
+  }
+
+  const inventario = useMemo<InventarioItem[]>(() => {
+    const mapaCatalogo = new Map(catalogo.map((item) => [item.id, item]));
+
+    return transacciones
+      .filter((t) => !t.consumido)
+      .map((t) => {
+        const item = mapaCatalogo.get(t.item_id);
+        if (!item) return null;
+
+        return {
+          transaccionId: t.id,
+          itemId: item.id,
+          titulo: item.titulo,
+          descripcion: item.descripcion,
+          imagen_url: item.imagen_url,
+          coste: item.coste,
+          categoria: item.categoria,
+          fecha: t.fecha,
+        };
+      })
+      .filter(Boolean) as InventarioItem[];
+  }, [catalogo, transacciones]);
 
   if (loading) {
     return (
@@ -198,13 +290,23 @@ export default function JugadorPage() {
                 activas del Mercado del Mérito y mantener tu ficha al día.
               </p>
 
-              <button
-                type="button"
-                onClick={() => setMostrarPerfil((prev) => !prev)}
-                className="mt-4 border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
-              >
-                Perfil
-              </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarPerfil((prev) => !prev)}
+                  className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+                >
+                  Perfil
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMostrarInventario((prev) => !prev)}
+                  className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+                >
+                  Inventario
+                </button>
+              </div>
 
               {mostrarPerfil ? (
                 <form
@@ -293,6 +395,85 @@ export default function JugadorPage() {
         </div>
       </section>
 
+      {mostrarInventario ? (
+        <section className="mt-8 border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+          <p
+            className="text-sm uppercase tracking-[0.28em] text-amber-950/80"
+            style={{ fontFamily: "var(--font-medieval)" }}
+          >
+            Objetos del jugador
+          </p>
+
+          <h2
+            className="mt-2 text-4xl"
+            style={{ fontFamily: "var(--font-almendra)" }}
+          >
+            Inventario
+          </h2>
+
+          <div className="mt-6 grid gap-4">
+            {inventario.map((item) => (
+              <article
+                key={item.transaccionId}
+                className="border border-amber-950/25 bg-white/45 p-4 shadow-md"
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="flex gap-4">
+                    <div className="h-20 w-20 overflow-hidden border-[3px] border-amber-950/35 bg-amber-200">
+                      {item.imagen_url ? (
+                        <img
+                          src={item.imagen_url}
+                          alt={item.titulo}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs text-stone-700">
+                          Sin imagen
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
+                        {item.categoria}
+                      </p>
+                      <h3
+                        className="mt-2 text-3xl leading-none"
+                        style={{ fontFamily: "var(--font-almendra)" }}
+                      >
+                        {item.titulo}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-stone-800/80">
+                        {item.descripcion}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="border border-amber-950/30 bg-amber-100/70 px-4 py-3 text-sm uppercase tracking-[0.18em]">
+                      {item.coste} PE
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => consumirItem(item.transaccionId)}
+                      className="border border-red-900/40 px-4 py-2 text-xs uppercase tracking-[0.18em] text-red-900"
+                    >
+                      Gastado / borrar
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+
+            {inventario.length === 0 ? (
+              <p className="text-sm text-stone-700">
+                No tienes objetos en el inventario.
+              </p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       <section className="mt-8 border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
         <p
           className="text-sm uppercase tracking-[0.28em] text-amber-950/80"
@@ -353,8 +534,17 @@ export default function JugadorPage() {
                   </div>
                 </div>
 
-                <div className="border border-amber-950/30 bg-amber-100/70 px-4 py-3 text-sm uppercase tracking-[0.18em]">
-                  {item.coste} PE
+                <div className="flex flex-col gap-2">
+                  <div className="border border-amber-950/30 bg-amber-100/70 px-4 py-3 text-sm uppercase tracking-[0.18em]">
+                    {item.coste} PE
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => canjearItem(item.id)}
+                    className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+                  >
+                    Canjear
+                  </button>
                 </div>
               </div>
             </article>
