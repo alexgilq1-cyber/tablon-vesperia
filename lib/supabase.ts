@@ -14,7 +14,7 @@ if (!supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export function createSupabaseServerClient() {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
