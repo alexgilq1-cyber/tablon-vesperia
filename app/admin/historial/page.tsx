@@ -21,7 +21,7 @@ type ItemCatalogo = {
 type Transaccion = {
   id: string;
   perfil_id: string;
-  item_id: string;
+  item_id: string | null;
   fecha: string;
   consumido: boolean;
   consumido_en: string | null;
@@ -93,8 +93,21 @@ export default function AdminHistorialPage() {
       return;
     }
 
-    const perfilIds = [...new Set(transacciones.map((t) => t.perfil_id))];
-    const itemIds = [...new Set(transacciones.map((t) => t.item_id))];
+    const perfilIds = [
+      ...new Set(
+        transacciones
+          .map((t) => t.perfil_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+
+    const itemIds = [
+      ...new Set(
+        transacciones
+          .map((t) => t.item_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
 
     const { data: perfilesData, error: perfilesError } = await supabase
       .from("perfiles")
@@ -107,25 +120,30 @@ export default function AdminHistorialPage() {
       return;
     }
 
-    const { data: itemsData, error: itemsError } = await supabase
-      .from("catalogo")
-      .select("id, titulo, categoria, localizacion, imagen_url, coste")
-      .in("id", itemIds);
+    let items: ItemCatalogo[] = [];
 
-    if (itemsError) {
-      setMensaje(`No se pudieron cargar los objetos: ${itemsError.message}`);
-      setCargando(false);
-      return;
+    if (itemIds.length > 0) {
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("catalogo")
+        .select("id, titulo, categoria, localizacion, imagen_url, coste")
+        .in("id", itemIds);
+
+      if (itemsError) {
+        setMensaje(`No se pudieron cargar los objetos: ${itemsError.message}`);
+        setCargando(false);
+        return;
+      }
+
+      items = (itemsData ?? []) as ItemCatalogo[];
     }
 
     const perfiles = (perfilesData ?? []) as Perfil[];
-    const items = (itemsData ?? []) as ItemCatalogo[];
 
     const mapaPerfiles = new Map(perfiles.map((p) => [p.id, p.nombre]));
     const mapaItems = new Map(items.map((i) => [i.id, i]));
 
     const filas: HistorialRow[] = transacciones.map((t) => {
-      const item = mapaItems.get(t.item_id);
+      const item = t.item_id ? mapaItems.get(t.item_id) : null;
 
       return {
         id: t.id,
@@ -279,13 +297,9 @@ export default function AdminHistorialPage() {
       </section>
 
       <section className="mt-8 space-y-4">
-        {mensaje ? (
-          <p className="text-amber-100">{mensaje}</p>
-        ) : null}
+        {mensaje ? <p className="text-amber-100">{mensaje}</p> : null}
 
-        {cargando ? (
-          <p className="text-amber-100">Cargando historial...</p>
-        ) : null}
+        {cargando ? <p className="text-amber-100">Cargando historial...</p> : null}
 
         {!cargando &&
           historialFiltrado.map((fila) => (
