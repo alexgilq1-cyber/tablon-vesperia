@@ -31,23 +31,26 @@ export default function JugadorPage() {
   const [puntos, setPuntos] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
+  const [mostrarPerfil, setMostrarPerfil] = useState(false);
 
   async function cargarDatos() {
     setLoading(true);
     setMensaje("");
 
-    const [{ data: perfilData, error: perfilError }, { data: catalogoData, error: catalogoError }] =
-      await Promise.all([
-        supabase
-          .from("perfiles")
-          .select("id, nombre, imagen_url, puntos_esencia")
-          .eq("id", id)
-          .single(),
-        supabase
-          .from("catalogo")
-          .select("id, titulo, descripcion, coste, categoria")
-          .order("coste", { ascending: true }),
-      ]);
+    const [
+      { data: perfilData, error: perfilError },
+      { data: catalogoData, error: catalogoError },
+    ] = await Promise.all([
+      supabase
+        .from("perfiles")
+        .select("id, nombre, imagen_url, puntos_esencia")
+        .eq("id", id)
+        .single(),
+      supabase
+        .from("catalogo")
+        .select("id, titulo, descripcion, coste, categoria")
+        .order("coste", { ascending: true }),
+    ]);
 
     if (perfilError) {
       setMensaje(`No se pudo cargar el perfil: ${perfilError.message}`);
@@ -76,7 +79,7 @@ export default function JugadorPage() {
     }
   }, [id]);
 
-  async function guardarCambios(e: React.FormEvent) {
+  async function guardarPerfil(e: React.FormEvent) {
     e.preventDefault();
     setMensaje("");
 
@@ -85,16 +88,36 @@ export default function JugadorPage() {
       .update({
         nombre,
         imagen_url: imagenUrl || null,
+      })
+      .eq("id", id);
+
+    if (error) {
+      setMensaje(`No se pudo guardar el perfil: ${error.message}`);
+      return;
+    }
+
+    setMensaje("Perfil actualizado correctamente.");
+    await cargarDatos();
+    setMostrarPerfil(false);
+  }
+
+  async function guardarPuntos(e: React.FormEvent) {
+    e.preventDefault();
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("perfiles")
+      .update({
         puntos_esencia: Math.max(0, puntos),
       })
       .eq("id", id);
 
     if (error) {
-      setMensaje(`No se pudo guardar: ${error.message}`);
+      setMensaje(`No se pudieron guardar los puntos: ${error.message}`);
       return;
     }
 
-    setMensaje("Perfil actualizado correctamente.");
+    setMensaje("Puntos de Esencia actualizados.");
     await cargarDatos();
   }
 
@@ -154,7 +177,7 @@ export default function JugadorPage() {
               )}
             </div>
 
-            <div>
+            <div className="flex-1">
               <p
                 className="text-sm uppercase tracking-[0.28em] text-amber-950/80"
                 style={{ fontFamily: "var(--font-medieval)" }}
@@ -170,9 +193,57 @@ export default function JugadorPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-800/80">
-                Aquí puedes consultar tu reserva de esencia, editar tu ficha y
-                revisar las ofertas activas del Mercado del Mérito.
+                Aquí puedes consultar tu reserva de esencia, revisar las ofertas
+                activas del Mercado del Mérito y mantener tu ficha al día.
               </p>
+
+              <button
+                type="button"
+                onClick={() => setMostrarPerfil((prev) => !prev)}
+                className="mt-4 border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+              >
+                Perfil
+              </button>
+
+              {mostrarPerfil ? (
+                <form
+                  onSubmit={guardarPerfil}
+                  className="mt-4 space-y-3 border border-amber-950/25 bg-white/45 p-4"
+                >
+                  <input
+                    type="text"
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    placeholder="Nombre"
+                    required
+                    className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+                  />
+
+                  <input
+                    type="text"
+                    value={imagenUrl}
+                    onChange={(e) => setImagenUrl(e.target.value)}
+                    placeholder="URL de la imagen"
+                    className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+                  />
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="submit"
+                      className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+                    >
+                      Guardar perfil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarPerfil(false)}
+                      className="border border-amber-950/30 px-4 py-2 text-xs uppercase tracking-[0.18em] text-stone-900"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </form>
+              ) : null}
             </div>
           </div>
         </div>
@@ -195,115 +266,86 @@ export default function JugadorPage() {
           <p className="mt-2 text-sm uppercase tracking-[0.2em] text-amber-100/75">
             Puntos de Esencia
           </p>
-        </div>
-      </section>
 
-      <section className="mt-8 grid gap-8 xl:grid-cols-2">
-        <form
-          onSubmit={guardarCambios}
-          className="border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
-        >
-          <h2
-            className="text-3xl"
-            style={{ fontFamily: "var(--font-almendra)" }}
-          >
-            Editar perfil
-          </h2>
-
-          <div className="mt-5 space-y-4">
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Nombre"
-              required
-              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
-            />
-
-            <input
-              type="text"
-              value={imagenUrl}
-              onChange={(e) => setImagenUrl(e.target.value)}
-              placeholder="URL de la imagen"
-              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
-            />
-
+          <form onSubmit={guardarPuntos} className="mt-6 space-y-3">
+            <label className="block text-sm text-amber-100/85">
+              Editar puntos
+            </label>
             <input
               type="number"
               value={puntos}
               onChange={(e) => setPuntos(Number(e.target.value))}
               min={0}
-              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+              className="w-full border border-amber-200/25 bg-white/90 px-4 py-3 text-stone-900 outline-none"
             />
-          </div>
-
-          <button
-            type="submit"
-            className="mt-5 border border-stone-900 bg-stone-900 px-5 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
-          >
-            Guardar cambios
-          </button>
+            <button
+              type="submit"
+              className="border border-amber-100/30 bg-amber-50/10 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+            >
+              Guardar puntos
+            </button>
+          </form>
 
           {mensaje ? (
-            <p className="mt-4 text-sm text-stone-800">{mensaje}</p>
+            <p className="mt-4 text-sm text-amber-100">{mensaje}</p>
           ) : null}
-        </form>
+        </div>
+      </section>
 
-        <section className="border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
-          <p
-            className="text-sm uppercase tracking-[0.28em] text-amber-950/80"
-            style={{ fontFamily: "var(--font-medieval)" }}
-          >
-            Mercado del Mérito
-          </p>
+      <section className="mt-8 border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+        <p
+          className="text-sm uppercase tracking-[0.28em] text-amber-950/80"
+          style={{ fontFamily: "var(--font-medieval)" }}
+        >
+          Mercado del Mérito
+        </p>
 
-          <h2
-            className="mt-2 text-4xl"
-            style={{ fontFamily: "var(--font-almendra)" }}
-          >
-            Catálogo
-          </h2>
+        <h2
+          className="mt-2 text-4xl"
+          style={{ fontFamily: "var(--font-almendra)" }}
+        >
+          Catálogo
+        </h2>
 
-          <div className="mt-6 grid gap-4">
-            {catalogo.map((item, index) => (
-              <article
-                key={item.id}
-                className={`border border-amber-950/25 bg-white/45 p-4 shadow-md ${
-                  index % 2 === 0 ? "rotate-[-0.4deg]" : "rotate-[0.4deg]"
-                }`}
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
-                      {item.categoria}
-                    </p>
+        <div className="mt-6 grid gap-4">
+          {catalogo.map((item, index) => (
+            <article
+              key={item.id}
+              className={`border border-amber-950/25 bg-white/45 p-4 shadow-md ${
+                index % 2 === 0 ? "rotate-[-0.4deg]" : "rotate-[0.4deg]"
+              }`}
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
+                    {item.categoria}
+                  </p>
 
-                    <h3
-                      className="mt-2 text-3xl leading-none"
-                      style={{ fontFamily: "var(--font-almendra)" }}
-                    >
-                      {item.titulo}
-                    </h3>
+                  <h3
+                    className="mt-2 text-3xl leading-none"
+                    style={{ fontFamily: "var(--font-almendra)" }}
+                  >
+                    {item.titulo}
+                  </h3>
 
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-800/80">
-                      {item.descripcion}
-                    </p>
-                  </div>
-
-                  <div className="border border-amber-950/30 bg-amber-100/70 px-4 py-3 text-sm uppercase tracking-[0.18em]">
-                    {item.coste} PE
-                  </div>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-800/80">
+                    {item.descripcion}
+                  </p>
                 </div>
-              </article>
-            ))}
 
-            {catalogo.length === 0 ? (
-              <p className="text-sm text-stone-700">
-                No hay objetos disponibles en el catálogo.
-              </p>
-            ) : null}
-          </div>
-        </section>
+                <div className="border border-amber-950/30 bg-amber-100/70 px-4 py-3 text-sm uppercase tracking-[0.18em]">
+                  {item.coste} PE
+                </div>
+              </div>
+            </article>
+          ))}
+
+          {catalogo.length === 0 ? (
+            <p className="text-sm text-stone-700">
+              No hay objetos disponibles en el catálogo.
+            </p>
+          ) : null}
+        </div>
       </section>
     </main>
   );
