@@ -8,6 +8,7 @@ type Perfil = {
   nombre: string;
   imagen_url: string | null;
   puntos_esencia: number;
+  descripcion_personaje: string | null;
 };
 
 export default async function HomePage() {
@@ -15,7 +16,7 @@ export default async function HomePage() {
 
   const { data, error } = await supabase
     .from("perfiles")
-    .select("id, nombre, imagen_url, puntos_esencia")
+    .select("id, nombre, imagen_url, puntos_esencia, descripcion_personaje")
     .order("nombre", { ascending: true });
 
   if (error) {
@@ -47,11 +48,6 @@ export default async function HomePage() {
           >
             Consejo de Vesperia
           </h2>
-
-          <p className="mt-4 text-sm leading-6 text-stone-800/80">
-            Entra al panel del Master para crear perfiles, ajustar PE y vigilar
-            el reino.
-          </p>
         </Link>
 
         {perfiles.map((perfil, index) => (
@@ -88,15 +84,23 @@ export default async function HomePage() {
                 >
                   Aventurero
                 </p>
+
                 <h2
                   className="mt-2 text-3xl leading-none"
                   style={{ fontFamily: "var(--font-almendra)" }}
                 >
                   {perfil.nombre}
                 </h2>
-                <p className="mt-3 text-sm uppercase tracking-[0.18em] text-stone-800/75">
-                  Ver perfil
-                </p>
+
+                {perfil.descripcion_personaje ? (
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-stone-800/80">
+                    {perfil.descripcion_personaje}
+                  </p>
+                ) : (
+                  <p className="mt-3 text-sm uppercase tracking-[0.18em] text-stone-800/75">
+                    Ver perfil
+                  </p>
+                )}
               </div>
             </div>
           </Link>
