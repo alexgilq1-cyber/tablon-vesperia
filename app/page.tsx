@@ -117,7 +117,7 @@ export default async function HomePage() {
                   {perfil.nombre}
                 </h2>
                 <p className="mt-3 text-sm uppercase tracking-[0.18em] text-stone-800/75">
-                  {perfil.puntos_esencia} PE disponibles
+                  Ver perfil
                 </p>
               </div>
             </div>
