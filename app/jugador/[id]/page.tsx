@@ -10,6 +10,7 @@ type Perfil = {
   nombre: string;
   imagen_url: string | null;
   puntos_esencia: number;
+  descripcion_personaje: string | null;
 };
 
 type ItemCatalogo = {
@@ -50,6 +51,7 @@ export default function JugadorPage() {
   const [transacciones, setTransacciones] = useState<Transaccion[]>([]);
   const [nombre, setNombre] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
+  const [descripcionPersonaje, setDescripcionPersonaje] = useState("");
   const [puntos, setPuntos] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,7 @@ export default function JugadorPage() {
     ] = await Promise.all([
       supabase
         .from("perfiles")
-        .select("id, nombre, imagen_url, puntos_esencia")
+        .select("id, nombre, imagen_url, puntos_esencia, descripcion_personaje")
         .eq("id", id)
         .single(),
       supabase
@@ -105,6 +107,7 @@ export default function JugadorPage() {
     setTransacciones((transaccionesData ?? []) as Transaccion[]);
     setNombre(perfilCargado.nombre);
     setImagenUrl(perfilCargado.imagen_url ?? "");
+    setDescripcionPersonaje(perfilCargado.descripcion_personaje ?? "");
     setPuntos(perfilCargado.puntos_esencia);
     setLoading(false);
   }
@@ -124,6 +127,7 @@ export default function JugadorPage() {
       .update({
         nombre,
         imagen_url: imagenUrl || null,
+        descripcion_personaje: descripcionPersonaje || null,
       })
       .eq("id", id);
 
@@ -286,8 +290,8 @@ export default function JugadorPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-800/80">
-                Aquí puedes consultar tu reserva de esencia, revisar las ofertas
-                activas del Mercado del Mérito y mantener tu ficha al día.
+                {perfil.descripcion_personaje ||
+                  "Aquí puedes consultar tu reserva de esencia, revisar las ofertas activas del Mercado del Mérito y mantener tu ficha al día."}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -328,6 +332,13 @@ export default function JugadorPage() {
                     onChange={(e) => setImagenUrl(e.target.value)}
                     placeholder="URL de la imagen"
                     className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+                  />
+
+                  <textarea
+                    value={descripcionPersonaje}
+                    onChange={(e) => setDescripcionPersonaje(e.target.value)}
+                    placeholder="Descripción del personaje"
+                    className="min-h-28 w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
                   />
 
                   <div className="flex flex-wrap gap-2">
