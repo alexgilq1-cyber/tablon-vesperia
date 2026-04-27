@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [puntos, setPuntos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [editandoPuntos, setEditandoPuntos] = useState<Record<string, number>>({});
 
   async function cargarPerfiles() {
     const { data, error } = await supabase
@@ -30,7 +31,14 @@ export default function AdminPage() {
       return;
     }
 
-    setPerfiles(data ?? []);
+    const lista = (data ?? []) as Perfil[];
+    setPerfiles(lista);
+
+    const mapa: Record<string, number> = {};
+    for (const perfil of lista) {
+      mapa[perfil.id] = perfil.puntos_esencia;
+    }
+    setEditandoPuntos(mapa);
   }
 
   useEffect(() => {
@@ -77,6 +85,11 @@ export default function AdminPage() {
 
     setMensaje("Puntos de Esencia actualizados.");
     await cargarPerfiles();
+  }
+
+  async function guardarPuntos(id: string) {
+    const valor = editandoPuntos[id] ?? 0;
+    await actualizarPE(id, valor);
   }
 
   async function eliminarPerfil(id: string) {
@@ -198,7 +211,7 @@ export default function AdminPage() {
                 key={perfil.id}
                 className="border border-amber-950/25 bg-white/45 p-4"
               >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-4">
                   <div>
                     <h3
                       className="text-2xl"
@@ -206,52 +219,44 @@ export default function AdminPage() {
                     >
                       {perfil.nombre}
                     </h3>
-                    <p className="mt-1 text-sm text-stone-700">
-                      {perfil.puntos_esencia} PE
-                    </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        actualizarPE(
-                          perfil.id,
-                          Math.max(0, perfil.puntos_esencia - 1)
-                        )
-                      }
-                      className="border border-amber-950/30 px-3 py-2 text-sm"
-                    >
-                      -1
-                    </button>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-stone-700">
+                        Puntos de Esencia
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={editandoPuntos[perfil.id] ?? 0}
+                        onChange={(e) =>
+                          setEditandoPuntos((prev) => ({
+                            ...prev,
+                            [perfil.id]: Number(e.target.value),
+                          }))
+                        }
+                        className="w-28 border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
+                      />
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        actualizarPE(perfil.id, perfil.puntos_esencia + 1)
-                      }
-                      className="border border-amber-950/30 px-3 py-2 text-sm"
-                    >
-                      +1
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => guardarPuntos(perfil.id)}
+                        className="border border-stone-900 bg-stone-900 px-3 py-2 text-sm uppercase tracking-[0.12em] text-amber-50"
+                      >
+                        Guardar
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        actualizarPE(perfil.id, perfil.puntos_esencia + 5)
-                      }
-                      className="border border-amber-950/30 px-3 py-2 text-sm"
-                    >
-                      +5
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => eliminarPerfil(perfil.id)}
-                      className="border border-red-900/40 px-3 py-2 text-sm text-red-900"
-                    >
-                      Eliminar
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => eliminarPerfil(perfil.id)}
+                        className="border border-red-900/40 px-3 py-2 text-sm text-red-900"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
