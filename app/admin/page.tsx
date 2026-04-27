@@ -82,7 +82,6 @@ export default function AdminPage() {
 
   async function guardarPerfil(id: string) {
     const datos = editando[id];
-
     if (!datos) return;
 
     setMensaje("");
@@ -142,6 +141,14 @@ export default function AdminPage() {
           style={{ textDecoration: "none" }}
         >
           Editar catálogo
+        </Link>
+
+        <Link
+          href="/admin/historial"
+          className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
+          style={{ textDecoration: "none" }}
+        >
+          Historial
         </Link>
       </div>
 
