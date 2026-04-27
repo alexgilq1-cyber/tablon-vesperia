@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Almendra, MedievalSharp } from "next/font/google";
+import "./globals.css";
 
 const almendra = Almendra({
   subsets: ["latin"],
@@ -15,7 +16,7 @@ const medievalSharp = MedievalSharp({
 
 export const metadata: Metadata = {
   title: "Tablón de Vesperia",
-  description: "Tablón medieval para el Consejo y los aventureros de Vesperia."
+  description: "Tablón medieval para el Consejo y los aventureros de Vesperia.",
 };
 
 export default function RootLayout({
@@ -42,7 +43,7 @@ export default function RootLayout({
             linear-gradient(180deg, #5d3b25 0%, #2a1812 100%)
           `,
           color: "#f5e7c8",
-          fontFamily: "Georgia, serif"
+          fontFamily: "Georgia, serif",
         }}
       >
         {children}
