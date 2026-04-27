@@ -1,90 +1,30 @@
 import Link from "next/link";
+import { createSupabaseServerClient } from "@/lib/supabase";
 
-const jugadores = [
-  {
-    id: "aria-del-bosque",
-    nombre: "Aria del Bosque",
-    imagen:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80",
-    pe: 18,
-    rotacion: "-2deg",
-  },
-  {
-    id: "darian-cuervo",
-    nombre: "Darian Cuervo",
-    imagen:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
-    pe: 11,
-    rotacion: "1.5deg",
-  },
-  {
-    id: "selene-bruma",
-    nombre: "Selene Bruma",
-    imagen:
-      "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=600&q=80",
-    pe: 25,
-    rotacion: "-1deg",
-  },
-];
-
-function PergaminoJugador({
-  id,
-  nombre,
-  imagen,
-  pe,
-  rotacion,
-}: {
+type Perfil = {
   id: string;
   nombre: string;
-  imagen: string;
-  pe: number;
-  rotacion: string;
-}) {
-  return (
-    <Link
-      href={`/jugador/${id}`}
-      style={{
-        transform: `rotate(${rotacion})`,
-        textDecoration: "none",
-        color: "#22150f",
-      }}
-      className="block border border-amber-900/40 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-5 shadow-[0_20px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1"
-    >
-      <div className="flex items-start gap-4">
-        <div className="h-20 w-20 overflow-hidden border-[3px] border-amber-950/40 bg-amber-200 shadow-inner">
-          <img
-            src={imagen}
-            alt={nombre}
-            className="h-full w-full object-cover"
-          />
-        </div>
+  imagen_url: string | null;
+  puntos_esencia: number;
+};
 
-        <div className="min-w-0 flex-1">
-          <p
-            className="text-xs uppercase tracking-[0.25em] text-amber-950/70"
-            style={{ fontFamily: "var(--font-medieval)" }}
-          >
-            Aventurero
-          </p>
-          <h2
-            className="mt-2 text-3xl leading-none"
-            style={{ fontFamily: "var(--font-almendra)" }}
-          >
-            {nombre}
-          </h2>
-          <p className="mt-3 text-sm uppercase tracking-[0.18em] text-stone-800/75">
-            {pe} PE disponibles
-          </p>
-        </div>
-      </div>
-    </Link>
-  );
-}
+export default async function HomePage() {
+  const supabase = createSupabaseServerClient();
 
-export default function HomePage() {
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("id, nombre, imagen_url, puntos_esencia")
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const perfiles = (data ?? []) as Perfil[];
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <section className="border border-amber-900/40 bg-black/30 p-8 shadow-[0_25px_60px_rgba(0,0,0,0.45)] backdrop-blur-[1px]">
+      <section className="notice-board p-8">
         <p
           className="text-sm uppercase tracking-[0.35em] text-amber-300/75"
           style={{ fontFamily: "var(--font-medieval)" }}
@@ -108,11 +48,11 @@ export default function HomePage() {
 
       <section className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <Link
-          href="/admin"
-          className="relative block overflow-hidden border border-red-950/70 bg-[linear-gradient(180deg,rgba(238,222,176,0.96),rgba(211,172,110,0.99))] p-5 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.38)] transition hover:-translate-y-1 hover:rotate-[-1deg]"
+          href="/admin/login"
+          className="relative block overflow-hidden parchment-card p-5 transition hover:-translate-y-1 hover:rotate-[-1deg]"
           style={{ textDecoration: "none" }}
         >
-          <div className="absolute right-5 top-5 h-14 w-14 rounded-full border-4 border-red-900/60 bg-[radial-gradient(circle_at_30%_30%,#f8b0b0,#a1121d_60%,#5d0810)]" />
+          <div className="absolute right-5 top-5 wax-seal" />
 
           <p
             className="text-xs uppercase tracking-[0.25em] text-red-950/80"
@@ -134,8 +74,52 @@ export default function HomePage() {
           </p>
         </Link>
 
-        {jugadores.map((jugador) => (
-          <PergaminoJugador key={jugador.id} {...jugador} />
+        {perfiles.map((perfil, index) => (
+          <Link
+            key={perfil.id}
+            href={`/jugador/${perfil.id}`}
+            className={`block parchment-card p-5 transition hover:-translate-y-1 ${
+              index % 2 === 0 ? "rotate-[-1deg]" : "rotate-[1deg]"
+            }`}
+            style={{ textDecoration: "none", color: "#22150f" }}
+          >
+            <div className="flex items-start gap-4">
+              <div className="h-20 w-20 overflow-hidden border-[3px] border-amber-950/40 bg-amber-200 shadow-inner">
+                {perfil.imagen_url ? (
+                  <img
+                    src={perfil.imagen_url}
+                    alt={perfil.nombre}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="flex h-full w-full items-center justify-center text-3xl"
+                    style={{ fontFamily: "var(--font-almendra)" }}
+                  >
+                    {perfil.nombre.slice(0, 1)}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-xs uppercase tracking-[0.25em] text-amber-950/70"
+                  style={{ fontFamily: "var(--font-medieval)" }}
+                >
+                  Aventurero
+                </p>
+                <h2
+                  className="mt-2 text-3xl leading-none"
+                  style={{ fontFamily: "var(--font-almendra)" }}
+                >
+                  {perfil.nombre}
+                </h2>
+                <p className="mt-3 text-sm uppercase tracking-[0.18em] text-stone-800/75">
+                  {perfil.puntos_esencia} PE disponibles
+                </p>
+              </div>
+            </div>
+          </Link>
         ))}
       </section>
     </main>
