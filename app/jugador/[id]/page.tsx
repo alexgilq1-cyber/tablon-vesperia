@@ -20,6 +20,7 @@ type ItemCatalogo = {
   imagen_url: string | null;
   coste: number;
   categoria: string;
+  localizacion: string | null;
 };
 
 type Transaccion = {
@@ -39,8 +40,32 @@ type InventarioItem = {
   imagen_url: string | null;
   coste: number;
   categoria: string;
+  localizacion: string | null;
   fecha: string;
 };
+
+const categorias = [
+  "Todas",
+  "Armas",
+  "Scrolls",
+  "Permisos",
+  "Pociones",
+  "Reliquias",
+  "Objetos mágicos",
+  "Otros",
+];
+
+const localizaciones = [
+  "Todas",
+  "Protectorado de Pira",
+  "Unión del Hielo",
+  "Reino de Oakhaven",
+  "Baronía de Hierro",
+  "Confed. Río Plata",
+  "Teocracia del Monolito",
+  "Liga de la Planicie",
+  "Enclave de Puerto Gris",
+];
 
 export default function JugadorPage() {
   const params = useParams<{ id: string }>();
@@ -57,6 +82,8 @@ export default function JugadorPage() {
   const [loading, setLoading] = useState(true);
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   const [mostrarInventario, setMostrarInventario] = useState(false);
+  const [filtroCategoria, setFiltroCategoria] = useState("Todas");
+  const [filtroLocalizacion, setFiltroLocalizacion] = useState("Todas");
 
   async function cargarDatos() {
     setLoading(true);
@@ -74,7 +101,7 @@ export default function JugadorPage() {
         .single(),
       supabase
         .from("catalogo")
-        .select("id, titulo, descripcion, imagen_url, coste, categoria")
+        .select("id, titulo, descripcion, imagen_url, coste, categoria, localizacion")
         .order("categoria", { ascending: true }),
       supabase
         .from("transacciones")
@@ -212,11 +239,24 @@ export default function JugadorPage() {
           imagen_url: item.imagen_url,
           coste: item.coste,
           categoria: item.categoria,
+          localizacion: item.localizacion,
           fecha: t.fecha,
         };
       })
       .filter(Boolean) as InventarioItem[];
   }, [catalogo, transacciones]);
+
+  const catalogoFiltrado = useMemo(() => {
+    return catalogo.filter((item) => {
+      const okCategoria =
+        filtroCategoria === "Todas" || item.categoria === filtroCategoria;
+      const okLocalizacion =
+        filtroLocalizacion === "Todas" ||
+        (item.localizacion ?? "") === filtroLocalizacion;
+
+      return okCategoria && okLocalizacion;
+    });
+  }, [catalogo, filtroCategoria, filtroLocalizacion]);
 
   if (loading) {
     return (
@@ -448,6 +488,11 @@ export default function JugadorPage() {
                       <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
                         {item.categoria}
                       </p>
+                      {item.localizacion ? (
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-700/75">
+                          {item.localizacion}
+                        </p>
+                      ) : null}
                       <h3
                         className="mt-2 text-3xl leading-none"
                         style={{ fontFamily: "var(--font-almendra)" }}
@@ -500,8 +545,30 @@ export default function JugadorPage() {
           Catálogo
         </h2>
 
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <select
+            value={filtroCategoria}
+            onChange={(e) => setFiltroCategoria(e.target.value)}
+            className="w-full border border-amber-950/30 bg-white/85 px-4 py-3 text-stone-900 outline-none"
+          >
+            {categorias.map((opcion) => (
+              <option key={opcion}>{opcion}</option>
+            ))}
+          </select>
+
+          <select
+            value={filtroLocalizacion}
+            onChange={(e) => setFiltroLocalizacion(e.target.value)}
+            className="w-full border border-amber-950/30 bg-white/85 px-4 py-3 text-stone-900 outline-none"
+          >
+            {localizaciones.map((opcion) => (
+              <option key={opcion}>{opcion}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="mt-6 grid gap-4">
-          {catalogo.map((item, index) => (
+          {catalogoFiltrado.map((item, index) => (
             <article
               key={item.id}
               className={`border border-amber-950/25 bg-white/45 p-4 shadow-md ${
@@ -531,6 +598,11 @@ export default function JugadorPage() {
                     <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
                       {item.categoria}
                     </p>
+                    {item.localizacion ? (
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-700/75">
+                        {item.localizacion}
+                      </p>
+                    ) : null}
 
                     <h3
                       className="mt-2 text-3xl leading-none"
@@ -561,9 +633,9 @@ export default function JugadorPage() {
             </article>
           ))}
 
-          {catalogo.length === 0 ? (
+          {catalogoFiltrado.length === 0 ? (
             <p className="text-sm text-stone-700">
-              No hay objetos disponibles en el catálogo.
+              No hay objetos para esos filtros.
             </p>
           ) : null}
         </div>
