@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -100,6 +101,16 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="inline-block border border-amber-200/30 bg-black/25 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
+          style={{ textDecoration: "none" }}
+        >
+          Volver al tablón
+        </Link>
+      </div>
+
       <section className="border border-amber-950/45 bg-black/30 p-8 shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
         <p
           className="text-sm uppercase tracking-[0.35em] text-amber-300/75"
