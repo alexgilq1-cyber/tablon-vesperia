@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 type Perfil = {
   id: string;
   nombre: string;
