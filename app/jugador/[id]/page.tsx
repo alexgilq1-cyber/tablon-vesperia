@@ -16,6 +16,7 @@ type ItemCatalogo = {
   id: string;
   titulo: string;
   descripcion: string;
+  imagen_url: string | null;
   coste: number;
   categoria: string;
 };
@@ -48,8 +49,8 @@ export default function JugadorPage() {
         .single(),
       supabase
         .from("catalogo")
-        .select("id, titulo, descripcion, coste, categoria")
-        .order("coste", { ascending: true }),
+        .select("id, titulo, descripcion, imagen_url, coste, categoria")
+        .order("categoria", { ascending: true }),
     ]);
 
     if (perfilError) {
@@ -316,21 +317,40 @@ export default function JugadorPage() {
               }`}
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
-                    {item.categoria}
-                  </p>
+                <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden border-[3px] border-amber-950/35 bg-amber-200">
+                    {item.imagen_url ? (
+                      <img
+                        src={item.imagen_url}
+                        alt={item.titulo}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-full w-full items-center justify-center text-center text-sm text-stone-700"
+                        style={{ fontFamily: "var(--font-medieval)" }}
+                      >
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
 
-                  <h3
-                    className="mt-2 text-3xl leading-none"
-                    style={{ fontFamily: "var(--font-almendra)" }}
-                  >
-                    {item.titulo}
-                  </h3>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-amber-950/75">
+                      {item.categoria}
+                    </p>
 
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-800/80">
-                    {item.descripcion}
-                  </p>
+                    <h3
+                      className="mt-2 text-3xl leading-none"
+                      style={{ fontFamily: "var(--font-almendra)" }}
+                    >
+                      {item.titulo}
+                    </h3>
+
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-800/80">
+                      {item.descripcion}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="border border-amber-950/30 bg-amber-100/70 px-4 py-3 text-sm uppercase tracking-[0.18em]">
