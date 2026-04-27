@@ -10,6 +10,7 @@ type ItemCatalogo = {
   descripcion: string;
   imagen_url: string | null;
   categoria: string;
+  localizacion: string | null;
   coste: number;
 };
 
@@ -18,8 +19,31 @@ type ItemEditado = {
   descripcion: string;
   imagen_url: string;
   categoria: string;
+  localizacion: string;
   coste: number;
 };
+
+const categorias = [
+  "Armas",
+  "Scrolls",
+  "Permisos",
+  "Pociones",
+  "Reliquias",
+  "Objetos mágicos",
+  "Otros",
+];
+
+const localizaciones = [
+  "",
+  "Protectorado de Pira",
+  "Unión del Hielo",
+  "Reino de Oakhaven",
+  "Baronía de Hierro",
+  "Confed. Río Plata",
+  "Teocracia del Monolito",
+  "Liga de la Planicie",
+  "Enclave de Puerto Gris",
+];
 
 export default function AdminCatalogoPage() {
   const [items, setItems] = useState<ItemCatalogo[]>([]);
@@ -27,6 +51,7 @@ export default function AdminCatalogoPage() {
   const [descripcion, setDescripcion] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
   const [categoria, setCategoria] = useState("Armas");
+  const [localizacion, setLocalizacion] = useState("");
   const [coste, setCoste] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,7 +60,7 @@ export default function AdminCatalogoPage() {
   async function cargarCatalogo() {
     const { data, error } = await supabase
       .from("catalogo")
-      .select("id, titulo, descripcion, imagen_url, categoria, coste")
+      .select("id, titulo, descripcion, imagen_url, categoria, localizacion, coste")
       .order("categoria", { ascending: true });
 
     if (error) {
@@ -53,6 +78,7 @@ export default function AdminCatalogoPage() {
         descripcion: item.descripcion,
         imagen_url: item.imagen_url ?? "",
         categoria: item.categoria,
+        localizacion: item.localizacion ?? "",
         coste: item.coste,
       };
     }
@@ -73,6 +99,7 @@ export default function AdminCatalogoPage() {
       descripcion,
       imagen_url: imagenUrl || null,
       categoria,
+      localizacion: localizacion || null,
       coste: Math.max(0, coste),
     });
 
@@ -87,6 +114,7 @@ export default function AdminCatalogoPage() {
     setDescripcion("");
     setImagenUrl("");
     setCategoria("Armas");
+    setLocalizacion("");
     setCoste(0);
     setMensaje("Objeto añadido al catálogo.");
     await cargarCatalogo();
@@ -105,6 +133,7 @@ export default function AdminCatalogoPage() {
         descripcion: datos.descripcion,
         imagen_url: datos.imagen_url || null,
         categoria: datos.categoria,
+        localizacion: datos.localizacion || null,
         coste: Math.max(0, Number(datos.coste) || 0),
       })
       .eq("id", id);
@@ -174,8 +203,7 @@ export default function AdminCatalogoPage() {
         </h1>
 
         <p className="mt-4 max-w-2xl text-amber-100/85">
-          Aquí puedes crear y editar los objetos que verán los jugadores en su
-          perfil.
+          Aquí puedes crear y editar los objetos que verán los jugadores en su perfil.
         </p>
       </section>
 
@@ -222,13 +250,22 @@ export default function AdminCatalogoPage() {
               onChange={(e) => setCategoria(e.target.value)}
               className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
             >
-              <option>Armas</option>
-              <option>Scrolls</option>
-              <option>Permisos</option>
-              <option>Pociones</option>
-              <option>Reliquias</option>
-              <option>Objetos mágicos</option>
-              <option>Otros</option>
+              {categorias.map((opcion) => (
+                <option key={opcion}>{opcion}</option>
+              ))}
+            </select>
+
+            <select
+              value={localizacion}
+              onChange={(e) => setLocalizacion(e.target.value)}
+              className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
+            >
+              <option value="">Sin localización</option>
+              {localizaciones
+                .filter((loc) => loc !== "")
+                .map((loc) => (
+                  <option key={loc}>{loc}</option>
+                ))}
             </select>
 
             <input
@@ -316,7 +353,7 @@ export default function AdminCatalogoPage() {
                     placeholder="URL de la imagen"
                   />
 
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3 md:grid-cols-3">
                     <select
                       value={editando[item.id]?.categoria ?? "Otros"}
                       onChange={(e) =>
@@ -330,13 +367,30 @@ export default function AdminCatalogoPage() {
                       }
                       className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
                     >
-                      <option>Armas</option>
-                      <option>Scrolls</option>
-                      <option>Permisos</option>
-                      <option>Pociones</option>
-                      <option>Reliquias</option>
-                      <option>Objetos mágicos</option>
-                      <option>Otros</option>
+                      {categorias.map((opcion) => (
+                        <option key={opcion}>{opcion}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={editando[item.id]?.localizacion ?? ""}
+                      onChange={(e) =>
+                        setEditando((prev) => ({
+                          ...prev,
+                          [item.id]: {
+                            ...prev[item.id],
+                            localizacion: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
+                    >
+                      <option value="">Sin localización</option>
+                      {localizaciones
+                        .filter((loc) => loc !== "")
+                        .map((loc) => (
+                          <option key={loc}>{loc}</option>
+                        ))}
                     </select>
 
                     <input
