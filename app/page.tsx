@@ -26,29 +26,7 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <section className="notice-board p-8">
-        <p
-          className="text-sm uppercase tracking-[0.35em] text-amber-300/75"
-          style={{ fontFamily: "var(--font-medieval)" }}
-        >
-          Reino de Vesperia
-        </p>
-
-        <h1
-          className="mt-3 text-5xl leading-none text-amber-50 sm:text-6xl"
-          style={{ fontFamily: "var(--font-almendra)" }}
-        >
-          Tablón de Anuncios
-        </h1>
-
-        <p className="mt-4 max-w-2xl text-base leading-7 text-amber-100/85">
-          Bienvenido al tablón del reino. Cada pergamino conduce al panel de un
-          jugador. El Consejo de Vesperia custodia el mercado, los puntos de
-          esencia y el registro de cada trato.
-        </p>
-      </section>
-
-      <section className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/admin/login"
           className="relative block overflow-hidden parchment-card p-5 transition hover:-translate-y-1 hover:rotate-[-1deg]"
