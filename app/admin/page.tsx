@@ -11,6 +11,12 @@ type Perfil = {
   puntos_esencia: number;
 };
 
+type PerfilEditado = {
+  nombre: string;
+  imagen_url: string;
+  puntos_esencia: number;
+};
+
 export default function AdminPage() {
   const [perfiles, setPerfiles] = useState<Perfil[]>([]);
   const [nombre, setNombre] = useState("");
@@ -18,7 +24,7 @@ export default function AdminPage() {
   const [puntos, setPuntos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
-  const [editandoPuntos, setEditandoPuntos] = useState<Record<string, number>>({});
+  const [editando, setEditando] = useState<Record<string, PerfilEditado>>({});
 
   async function cargarPerfiles() {
     const { data, error } = await supabase
@@ -34,11 +40,15 @@ export default function AdminPage() {
     const lista = (data ?? []) as Perfil[];
     setPerfiles(lista);
 
-    const mapa: Record<string, number> = {};
+    const mapa: Record<string, PerfilEditado> = {};
     for (const perfil of lista) {
-      mapa[perfil.id] = perfil.puntos_esencia;
+      mapa[perfil.id] = {
+        nombre: perfil.nombre,
+        imagen_url: perfil.imagen_url ?? "",
+        puntos_esencia: perfil.puntos_esencia,
+      };
     }
-    setEditandoPuntos(mapa);
+    setEditando(mapa);
   }
 
   useEffect(() => {
@@ -53,7 +63,7 @@ export default function AdminPage() {
     const { error } = await supabase.from("perfiles").insert({
       nombre,
       imagen_url: imagenUrl || null,
-      puntos_esencia: puntos,
+      puntos_esencia: Math.max(0, puntos),
     });
 
     setLoading(false);
@@ -70,26 +80,29 @@ export default function AdminPage() {
     await cargarPerfiles();
   }
 
-  async function actualizarPE(id: string, nuevosPE: number) {
+  async function guardarPerfil(id: string) {
+    const datos = editando[id];
+
+    if (!datos) return;
+
     setMensaje("");
 
     const { error } = await supabase
       .from("perfiles")
-      .update({ puntos_esencia: Math.max(0, nuevosPE) })
+      .update({
+        nombre: datos.nombre,
+        imagen_url: datos.imagen_url || null,
+        puntos_esencia: Math.max(0, Number(datos.puntos_esencia) || 0),
+      })
       .eq("id", id);
 
     if (error) {
-      setMensaje(`No se pudo actualizar PE: ${error.message}`);
+      setMensaje(`No se pudo guardar el perfil: ${error.message}`);
       return;
     }
 
-    setMensaje("Puntos de Esencia actualizados.");
+    setMensaje("Perfil actualizado correctamente.");
     await cargarPerfiles();
-  }
-
-  async function guardarPuntos(id: string) {
-    const valor = editandoPuntos[id] ?? 0;
-    await actualizarPE(id, valor);
   }
 
   async function eliminarPerfil(id: string) {
@@ -140,8 +153,8 @@ export default function AdminPage() {
         </h1>
 
         <p className="mt-4 max-w-2xl text-amber-100/85">
-          Desde aquí puedes crear aventureros, ajustar sus Puntos de Esencia y
-          mantener el tablón del reino.
+          Desde aquí puedes crear aventureros, editar sus datos y mantener el
+          tablón del reino.
         </p>
       </section>
 
@@ -211,15 +224,38 @@ export default function AdminPage() {
                 key={perfil.id}
                 className="border border-amber-950/25 bg-white/45 p-4"
               >
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <h3
-                      className="text-2xl"
-                      style={{ fontFamily: "var(--font-almendra)" }}
-                    >
-                      {perfil.nombre}
-                    </h3>
-                  </div>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    value={editando[perfil.id]?.nombre ?? ""}
+                    onChange={(e) =>
+                      setEditando((prev) => ({
+                        ...prev,
+                        [perfil.id]: {
+                          ...prev[perfil.id],
+                          nombre: e.target.value,
+                        },
+                      }))
+                    }
+                    className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
+                    placeholder="Nombre"
+                  />
+
+                  <input
+                    type="text"
+                    value={editando[perfil.id]?.imagen_url ?? ""}
+                    onChange={(e) =>
+                      setEditando((prev) => ({
+                        ...prev,
+                        [perfil.id]: {
+                          ...prev[perfil.id],
+                          imagen_url: e.target.value,
+                        },
+                      }))
+                    }
+                    className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
+                    placeholder="URL de la imagen"
+                  />
 
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
@@ -229,11 +265,14 @@ export default function AdminPage() {
                       <input
                         type="number"
                         min={0}
-                        value={editandoPuntos[perfil.id] ?? 0}
+                        value={editando[perfil.id]?.puntos_esencia ?? 0}
                         onChange={(e) =>
-                          setEditandoPuntos((prev) => ({
+                          setEditando((prev) => ({
                             ...prev,
-                            [perfil.id]: Number(e.target.value),
+                            [perfil.id]: {
+                              ...prev[perfil.id],
+                              puntos_esencia: Number(e.target.value) || 0,
+                            },
                           }))
                         }
                         className="w-28 border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
@@ -243,7 +282,7 @@ export default function AdminPage() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => guardarPuntos(perfil.id)}
+                        onClick={() => guardarPerfil(perfil.id)}
                         className="border border-stone-900 bg-stone-900 px-3 py-2 text-sm uppercase tracking-[0.12em] text-amber-50"
                       >
                         Guardar
