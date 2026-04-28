@@ -141,6 +141,8 @@ export default function AdminPage() {
   const [fondoAdminUrl, setFondoAdminUrl] = useState("");
   const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
   const [archivosEditar, setArchivosEditar] = useState<Record<string, File | null>>({});
+  const [archivoFondoInicio, setArchivoFondoInicio] = useState<File | null>(null);
+  const [archivoFondoAdmin, setArchivoFondoAdmin] = useState<File | null>(null);
 
   async function subirImagen(file: File) {
     const formData = new FormData();
@@ -278,22 +280,41 @@ export default function AdminPage() {
     e.preventDefault();
     setMensaje("");
 
-    const { error } = await supabase
-      .from("app_config")
-      .update({
-        fondo_inicio_url: fondoInicioUrl || null,
-        fondo_admin_url: fondoAdminUrl || null,
-      })
-      .eq("id", 1);
+    try {
+      let fondoInicioFinal = fondoInicioUrl || null;
+      let fondoAdminFinal = fondoAdminUrl || null;
 
-    if (error) {
-      setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
-      return;
+      if (archivoFondoInicio) {
+        fondoInicioFinal = await subirImagen(archivoFondoInicio);
+      }
+
+      if (archivoFondoAdmin) {
+        fondoAdminFinal = await subirImagen(archivoFondoAdmin);
+      }
+
+      const { error } = await supabase
+        .from("app_config")
+        .update({
+          fondo_inicio_url: fondoInicioFinal,
+          fondo_admin_url: fondoAdminFinal,
+        })
+        .eq("id", 1);
+
+      if (error) {
+        setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
+        return;
+      }
+
+      setFondoInicioUrl(fondoInicioFinal ?? "");
+      setFondoAdminUrl(fondoAdminFinal ?? "");
+      setArchivoFondoInicio(null);
+      setArchivoFondoAdmin(null);
+      setMensaje("Ajustes guardados correctamente.");
+      await cargarAjustes();
+      setMostrarAjustes(false);
+    } catch (error) {
+      setMensaje(error instanceof Error ? error.message : "No se pudieron guardar los ajustes.");
     }
-
-    setMensaje("Ajustes guardados correctamente.");
-    await cargarAjustes();
-    setMostrarAjustes(false);
   }
 
   async function eliminarPerfil(id: string) {
@@ -378,21 +399,19 @@ export default function AdminPage() {
             Ajustes del Master
           </h2>
 
-          <div className="mt-5 space-y-4">
-            <input
-              type="text"
-              value={fondoAdminUrl}
-              onChange={(e) => setFondoAdminUrl(e.target.value)}
-              placeholder="URL del fondo del panel del Master"
-              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+          <div className="mt-5 space-y-5">
+            <DropzoneImagen
+              label="Fondo de la portada principal"
+              file={archivoFondoInicio}
+              currentImageUrl={fondoInicioUrl}
+              onFileChange={setArchivoFondoInicio}
             />
 
-            <input
-              type="text"
-              value={fondoInicioUrl}
-              onChange={(e) => setFondoInicioUrl(e.target.value)}
-              placeholder="URL del fondo de la portada principal"
-              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            <DropzoneImagen
+              label="Fondo del panel del Master"
+              file={archivoFondoAdmin}
+              currentImageUrl={fondoAdminUrl}
+              onFileChange={setArchivoFondoAdmin}
             />
           </div>
 
