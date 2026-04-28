@@ -17,6 +17,12 @@ type PerfilEditado = {
   puntos_esencia: number;
 };
 
+type AppConfig = {
+  id: number;
+  fondo_inicio_url: string | null;
+  fondo_admin_url: string | null;
+};
+
 export default function AdminPage() {
   const [perfiles, setPerfiles] = useState<Perfil[]>([]);
   const [nombre, setNombre] = useState("");
@@ -25,6 +31,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [editando, setEditando] = useState<Record<string, PerfilEditado>>({});
+  const [mostrarAjustes, setMostrarAjustes] = useState(false);
+  const [fondoInicioUrl, setFondoInicioUrl] = useState("");
+  const [fondoAdminUrl, setFondoAdminUrl] = useState("");
 
   async function cargarPerfiles() {
     const { data, error } = await supabase
@@ -51,8 +60,21 @@ export default function AdminPage() {
     setEditando(mapa);
   }
 
+  async function cargarAjustes() {
+    const { data } = await supabase
+      .from("app_config")
+      .select("id, fondo_inicio_url, fondo_admin_url")
+      .eq("id", 1)
+      .maybeSingle();
+
+    const config = data as AppConfig | null;
+    setFondoInicioUrl(config?.fondo_inicio_url ?? "");
+    setFondoAdminUrl(config?.fondo_admin_url ?? "");
+  }
+
   useEffect(() => {
     cargarPerfiles();
+    cargarAjustes();
   }, []);
 
   async function crearPerfil(e: React.FormEvent) {
@@ -104,6 +126,28 @@ export default function AdminPage() {
     await cargarPerfiles();
   }
 
+  async function guardarAjustes(e: React.FormEvent) {
+    e.preventDefault();
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("app_config")
+      .update({
+        fondo_inicio_url: fondoInicioUrl || null,
+        fondo_admin_url: fondoAdminUrl || null,
+      })
+      .eq("id", 1);
+
+    if (error) {
+      setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
+      return;
+    }
+
+    setMensaje("Ajustes guardados correctamente.");
+    await cargarAjustes();
+    setMostrarAjustes(false);
+  }
+
   async function eliminarPerfil(id: string) {
     setMensaje("");
 
@@ -124,8 +168,22 @@ export default function AdminPage() {
     await cargarPerfiles();
   }
 
+  const customAdminBackground = fondoAdminUrl.trim();
+
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <main
+      className="mx-auto min-h-screen max-w-6xl px-4 py-10 sm:px-6 lg:px-8"
+      style={
+        customAdminBackground
+          ? {
+              backgroundImage: `linear-gradient(rgba(20,10,6,0.55), rgba(20,10,6,0.55)), url("${customAdminBackground}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
+            }
+          : undefined
+      }
+    >
       <div className="mb-6 flex flex-wrap gap-3">
         <Link
           href="/"
@@ -150,7 +208,63 @@ export default function AdminPage() {
         >
           Historial
         </Link>
+
+        <button
+          type="button"
+          onClick={() => setMostrarAjustes((prev) => !prev)}
+          className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
+        >
+          Ajustes
+        </button>
       </div>
+
+      {mostrarAjustes ? (
+        <form
+          onSubmit={guardarAjustes}
+          className="mb-8 border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
+        >
+          <h2
+            className="text-3xl"
+            style={{ fontFamily: "var(--font-almendra)" }}
+          >
+            Ajustes del Master
+          </h2>
+
+          <div className="mt-5 space-y-4">
+            <input
+              type="text"
+              value={fondoAdminUrl}
+              onChange={(e) => setFondoAdminUrl(e.target.value)}
+              placeholder="URL del fondo del panel del Master"
+              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            />
+
+            <input
+              type="text"
+              value={fondoInicioUrl}
+              onChange={(e) => setFondoInicioUrl(e.target.value)}
+              placeholder="URL del fondo de la portada principal"
+              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="submit"
+              className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+            >
+              Guardar ajustes
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarAjustes(false)}
+              className="border border-amber-950/30 px-4 py-2 text-xs uppercase tracking-[0.18em] text-stone-900"
+            >
+              Cerrar
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       <section className="border border-amber-950/45 bg-black/30 p-8 shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
         <p
