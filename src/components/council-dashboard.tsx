@@ -5,7 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { ImageDropzone } from "./image-dropzone";
-import type { CatalogItem, Profile } from "../types/domain";
+
+type Profile = {
+  id: string;
+  nombre: string;
+  imagen_url: string | null;
+  puntos_esencia: number;
+};
+
+type CatalogItem = {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  coste: number;
+  categoria: string;
+};
 
 type CouncilDashboardProps = {
   profiles: Profile[];
