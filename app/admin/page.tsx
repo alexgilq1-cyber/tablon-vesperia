@@ -3,23 +3,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type ItemCatalogo = {
+type Perfil = {
   id: string;
-  titulo: string;
-  descripcion: string;
+  nombre: string;
   imagen_url: string | null;
-  categoria: string;
-  localizacion: string | null;
-  coste: number;
+  puntos_esencia: number;
 };
 
-type ItemEditado = {
-  titulo: string;
-  descripcion: string;
+type PerfilEditado = {
+  nombre: string;
   imagen_url: string;
-  categoria: string;
-  localizacion: string;
-  coste: number;
+  puntos_esencia: number;
+};
+
+type AppConfig = {
+  id: number;
+  fondo_inicio_url: string | null;
+  fondo_admin_url: string | null;
 };
 
 type DropzoneProps = {
@@ -129,38 +129,16 @@ function DropzoneImagen({
   );
 }
 
-const categorias = [
-  "Armas",
-  "Scrolls",
-  "Permisos",
-  "Pociones",
-  "Reliquias",
-  "Objetos mágicos",
-  "Otros",
-];
-
-const localizaciones = [
-  "",
-  "Protectorado de Pira",
-  "Unión del Hielo",
-  "Reino de Oakhaven",
-  "Baronía de Hierro",
-  "Confed. Río Plata",
-  "Teocracia del Monolito",
-  "Liga de la Planicie",
-  "Enclave de Puerto Gris",
-];
-
-export default function AdminCatalogoPage() {
-  const [items, setItems] = useState<ItemCatalogo[]>([]);
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [categoria, setCategoria] = useState("Armas");
-  const [localizacion, setLocalizacion] = useState("");
-  const [coste, setCoste] = useState(0);
-  const [mensaje, setMensaje] = useState("");
+export default function AdminPage() {
+  const [perfiles, setPerfiles] = useState<Perfil[]>([]);
+  const [nombre, setNombre] = useState("");
+  const [puntos, setPuntos] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [editando, setEditando] = useState<Record<string, ItemEditado>>({});
+  const [mensaje, setMensaje] = useState("");
+  const [editando, setEditando] = useState<Record<string, PerfilEditado>>({});
+  const [mostrarAjustes, setMostrarAjustes] = useState(false);
+  const [fondoInicioUrl, setFondoInicioUrl] = useState("");
+  const [fondoAdminUrl, setFondoAdminUrl] = useState("");
   const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
   const [archivosEditar, setArchivosEditar] = useState<Record<string, File | null>>({});
 
@@ -182,40 +160,50 @@ export default function AdminCatalogoPage() {
     return payload.url;
   }
 
-  async function cargarCatalogo() {
+  async function cargarPerfiles() {
     const { data, error } = await supabase
-      .from("catalogo")
-      .select("id, titulo, descripcion, imagen_url, categoria, localizacion, coste")
-      .order("categoria", { ascending: true });
+      .from("perfiles")
+      .select("id, nombre, imagen_url, puntos_esencia")
+      .order("nombre", { ascending: true });
 
     if (error) {
-      setMensaje(`No se pudo cargar el catálogo: ${error.message}`);
+      setMensaje(`Error al cargar perfiles: ${error.message}`);
       return;
     }
 
-    const lista = (data ?? []) as ItemCatalogo[];
-    setItems(lista);
+    const lista = (data ?? []) as Perfil[];
+    setPerfiles(lista);
 
-    const mapa: Record<string, ItemEditado> = {};
-    for (const item of lista) {
-      mapa[item.id] = {
-        titulo: item.titulo,
-        descripcion: item.descripcion,
-        imagen_url: item.imagen_url ?? "",
-        categoria: item.categoria,
-        localizacion: item.localizacion ?? "",
-        coste: item.coste,
+    const mapa: Record<string, PerfilEditado> = {};
+    for (const perfil of lista) {
+      mapa[perfil.id] = {
+        nombre: perfil.nombre,
+        imagen_url: perfil.imagen_url ?? "",
+        puntos_esencia: perfil.puntos_esencia,
       };
     }
     setEditando(mapa);
     setArchivosEditar({});
   }
 
+  async function cargarAjustes() {
+    const { data } = await supabase
+      .from("app_config")
+      .select("id, fondo_inicio_url, fondo_admin_url")
+      .eq("id", 1)
+      .maybeSingle();
+
+    const config = data as AppConfig | null;
+    setFondoInicioUrl(config?.fondo_inicio_url ?? "");
+    setFondoAdminUrl(config?.fondo_admin_url ?? "");
+  }
+
   useEffect(() => {
-    cargarCatalogo();
+    cargarPerfiles();
+    cargarAjustes();
   }, []);
 
-  async function crearItem(e: React.FormEvent) {
+  async function crearPerfil(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMensaje("");
@@ -227,37 +215,31 @@ export default function AdminCatalogoPage() {
         imagenUrl = await subirImagen(archivoNuevo);
       }
 
-      const { error } = await supabase.from("catalogo").insert({
-        titulo,
-        descripcion,
+      const { error } = await supabase.from("perfiles").insert({
+        nombre,
         imagen_url: imagenUrl,
-        categoria,
-        localizacion: localizacion || null,
-        coste: Math.max(0, coste),
+        puntos_esencia: Math.max(0, puntos),
       });
 
       setLoading(false);
 
       if (error) {
-        setMensaje(`No se pudo crear el objeto: ${error.message}`);
+        setMensaje(`No se pudo crear el perfil: ${error.message}`);
         return;
       }
 
-      setTitulo("");
-      setDescripcion("");
-      setCategoria("Armas");
-      setLocalizacion("");
-      setCoste(0);
+      setNombre("");
+      setPuntos(0);
       setArchivoNuevo(null);
-      setMensaje("Objeto añadido al catálogo.");
-      await cargarCatalogo();
+      setMensaje("Perfil creado correctamente.");
+      await cargarPerfiles();
     } catch (error) {
       setLoading(false);
-      setMensaje(error instanceof Error ? error.message : "No se pudo crear el objeto.");
+      setMensaje(error instanceof Error ? error.message : "No se pudo crear el perfil.");
     }
   }
 
-  async function guardarItem(id: string) {
+  async function guardarPerfil(id: string) {
     const datos = editando[id];
     if (!datos) return;
 
@@ -272,51 +254,84 @@ export default function AdminCatalogoPage() {
       }
 
       const { error } = await supabase
-        .from("catalogo")
+        .from("perfiles")
         .update({
-          titulo: datos.titulo,
-          descripcion: datos.descripcion,
+          nombre: datos.nombre,
           imagen_url: imagenFinal,
-          categoria: datos.categoria,
-          localizacion: datos.localizacion || null,
-          coste: Math.max(0, Number(datos.coste) || 0),
+          puntos_esencia: Math.max(0, Number(datos.puntos_esencia) || 0),
         })
         .eq("id", id);
 
       if (error) {
-        setMensaje(`No se pudo guardar el objeto: ${error.message}`);
+        setMensaje(`No se pudo guardar el perfil: ${error.message}`);
         return;
       }
 
-      setMensaje("Objeto actualizado correctamente.");
-      await cargarCatalogo();
+      setMensaje("Perfil actualizado correctamente.");
+      await cargarPerfiles();
     } catch (error) {
-      setMensaje(error instanceof Error ? error.message : "No se pudo guardar el objeto.");
+      setMensaje(error instanceof Error ? error.message : "No se pudo guardar el perfil.");
     }
   }
 
-  async function eliminarItem(id: string) {
+  async function guardarAjustes(e: React.FormEvent) {
+    e.preventDefault();
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("app_config")
+      .update({
+        fondo_inicio_url: fondoInicioUrl || null,
+        fondo_admin_url: fondoAdminUrl || null,
+      })
+      .eq("id", 1);
+
+    if (error) {
+      setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
+      return;
+    }
+
+    setMensaje("Ajustes guardados correctamente.");
+    await cargarAjustes();
+    setMostrarAjustes(false);
+  }
+
+  async function eliminarPerfil(id: string) {
     setMensaje("");
 
     const confirmacion = window.confirm(
-      "¿Seguro que quieres eliminar este objeto del catálogo?"
+      "¿Seguro que quieres eliminar este perfil?"
     );
 
     if (!confirmacion) return;
 
-    const { error } = await supabase.from("catalogo").delete().eq("id", id);
+    const { error } = await supabase.from("perfiles").delete().eq("id", id);
 
     if (error) {
-      setMensaje(`No se pudo eliminar el objeto: ${error.message}`);
+      setMensaje(`No se pudo eliminar el perfil: ${error.message}`);
       return;
     }
 
-    setMensaje("Objeto eliminado.");
-    await cargarCatalogo();
+    setMensaje("Perfil eliminado.");
+    await cargarPerfiles();
   }
 
+  const customAdminBackground = fondoAdminUrl.trim();
+
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <main
+      className="mx-auto min-h-screen max-w-6xl px-4 py-10 sm:px-6 lg:px-8"
+      style={
+        customAdminBackground
+          ? {
+              backgroundImage: `linear-gradient(rgba(20,10,6,0.55), rgba(20,10,6,0.55)), url("${customAdminBackground}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
+            }
+          : undefined
+      }
+    >
       <div className="mb-6 flex flex-wrap gap-3">
         <a
           href="/"
@@ -327,100 +342,133 @@ export default function AdminCatalogoPage() {
         </a>
 
         <a
-          href="/admin"
+          href="/admin/catalogo"
           className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
           style={{ textDecoration: "none" }}
         >
-          Volver al Master
+          Editar catálogo
         </a>
+
+        <a
+          href="/admin/historial"
+          className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
+          style={{ textDecoration: "none" }}
+        >
+          Historial
+        </a>
+
+        <button
+          type="button"
+          onClick={() => setMostrarAjustes((prev) => !prev)}
+          className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
+        >
+          Ajustes
+        </button>
       </div>
+
+      {mostrarAjustes ? (
+        <form
+          onSubmit={guardarAjustes}
+          className="mb-8 border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
+        >
+          <h2
+            className="text-3xl"
+            style={{ fontFamily: "var(--font-almendra)" }}
+          >
+            Ajustes del Master
+          </h2>
+
+          <div className="mt-5 space-y-4">
+            <input
+              type="text"
+              value={fondoAdminUrl}
+              onChange={(e) => setFondoAdminUrl(e.target.value)}
+              placeholder="URL del fondo del panel del Master"
+              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            />
+
+            <input
+              type="text"
+              value={fondoInicioUrl}
+              onChange={(e) => setFondoInicioUrl(e.target.value)}
+              placeholder="URL del fondo de la portada principal"
+              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="submit"
+              className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+            >
+              Guardar ajustes
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarAjustes(false)}
+              className="border border-amber-950/30 px-4 py-2 text-xs uppercase tracking-[0.18em] text-stone-900"
+            >
+              Cerrar
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       <section className="border border-amber-950/45 bg-black/30 p-8 shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
         <p
           className="text-sm uppercase tracking-[0.35em] text-amber-300/75"
           style={{ fontFamily: "var(--font-medieval)" }}
         >
-          Archivo del reino
+          Sala reservada
         </p>
 
         <h1
           className="mt-3 text-5xl leading-none text-amber-50"
           style={{ fontFamily: "var(--font-almendra)" }}
         >
-          Catálogo del Master
+          Panel del Master
         </h1>
 
         <p className="mt-4 max-w-2xl text-amber-100/85">
-          Aquí puedes crear y editar los objetos que verán los jugadores en su perfil.
+          Desde aquí puedes crear aventureros, editar sus datos y mantener el
+          tablón del reino.
         </p>
       </section>
 
       <section className="mt-8 grid gap-8 lg:grid-cols-2">
         <form
-          onSubmit={crearItem}
+          onSubmit={crearPerfil}
           className="border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
         >
           <h2
             className="text-3xl"
             style={{ fontFamily: "var(--font-almendra)" }}
           >
-            Añadir objeto
+            Crear perfil
           </h2>
 
           <div className="mt-5 space-y-4">
             <input
               type="text"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Nombre del objeto"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Nombre del personaje"
               required
               className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
             />
 
-            <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Descripción"
-              required
-              className="min-h-32 w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
-            />
-
             <DropzoneImagen
-              label="Imagen del objeto"
+              label="Imagen del personaje"
               file={archivoNuevo}
               currentImageUrl={null}
               onFileChange={setArchivoNuevo}
             />
 
-            <select
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
-            >
-              {categorias.map((opcion) => (
-                <option key={opcion}>{opcion}</option>
-              ))}
-            </select>
-
-            <select
-              value={localizacion}
-              onChange={(e) => setLocalizacion(e.target.value)}
-              className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
-            >
-              <option value="">Sin localización</option>
-              {localizaciones
-                .filter((loc) => loc !== "")
-                .map((loc) => (
-                  <option key={loc}>{loc}</option>
-                ))}
-            </select>
-
             <input
               type="number"
-              value={coste}
-              onChange={(e) => setCoste(Number(e.target.value))}
+              value={puntos}
+              onChange={(e) => setPuntos(Number(e.target.value))}
               min={0}
-              placeholder="Coste"
               className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
             />
           </div>
@@ -430,7 +478,7 @@ export default function AdminCatalogoPage() {
             disabled={loading}
             className="mt-5 border border-stone-900 bg-stone-900 px-5 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
           >
-            {loading ? "Guardando..." : "Añadir objeto"}
+            {loading ? "Guardando..." : "Crear perfil"}
           </button>
 
           {mensaje ? (
@@ -443,25 +491,25 @@ export default function AdminCatalogoPage() {
             className="text-3xl"
             style={{ fontFamily: "var(--font-almendra)" }}
           >
-            Editar catálogo
+            Editar jugadores
           </h2>
 
           <div className="mt-5 space-y-4">
-            {items.map((item) => (
+            {perfiles.map((perfil) => (
               <div
-                key={item.id}
+                key={perfil.id}
                 className="border border-amber-950/25 bg-white/45 p-4"
               >
                 <div className="space-y-4">
                   <input
                     type="text"
-                    value={editando[item.id]?.titulo ?? ""}
+                    value={editando[perfil.id]?.nombre ?? ""}
                     onChange={(e) =>
                       setEditando((prev) => ({
                         ...prev,
-                        [item.id]: {
-                          ...prev[item.id],
-                          titulo: e.target.value,
+                        [perfil.id]: {
+                          ...prev[perfil.id],
+                          nombre: e.target.value,
                         },
                       }))
                     }
@@ -469,115 +517,65 @@ export default function AdminCatalogoPage() {
                     placeholder="Nombre"
                   />
 
-                  <textarea
-                    value={editando[item.id]?.descripcion ?? ""}
-                    onChange={(e) =>
-                      setEditando((prev) => ({
-                        ...prev,
-                        [item.id]: {
-                          ...prev[item.id],
-                          descripcion: e.target.value,
-                        },
-                      }))
-                    }
-                    className="min-h-28 w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
-                    placeholder="Descripción"
-                  />
-
                   <DropzoneImagen
-                    label="Imagen del objeto"
-                    file={archivosEditar[item.id] ?? null}
-                    currentImageUrl={editando[item.id]?.imagen_url ?? ""}
+                    label="Imagen del personaje"
+                    file={archivosEditar[perfil.id] ?? null}
+                    currentImageUrl={editando[perfil.id]?.imagen_url ?? ""}
                     onFileChange={(file) =>
                       setArchivosEditar((prev) => ({
                         ...prev,
-                        [item.id]: file,
+                        [perfil.id]: file,
                       }))
                     }
                   />
 
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <select
-                      value={editando[item.id]?.categoria ?? "Otros"}
-                      onChange={(e) =>
-                        setEditando((prev) => ({
-                          ...prev,
-                          [item.id]: {
-                            ...prev[item.id],
-                            categoria: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
-                    >
-                      {categorias.map((opcion) => (
-                        <option key={opcion}>{opcion}</option>
-                      ))}
-                    </select>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-stone-700">
+                        Puntos de Esencia
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={editando[perfil.id]?.puntos_esencia ?? 0}
+                        onChange={(e) =>
+                          setEditando((prev) => ({
+                            ...prev,
+                            [perfil.id]: {
+                              ...prev[perfil.id],
+                              puntos_esencia: Number(e.target.value) || 0,
+                            },
+                          }))
+                        }
+                        className="w-28 border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
+                      />
+                    </div>
 
-                    <select
-                      value={editando[item.id]?.localizacion ?? ""}
-                      onChange={(e) =>
-                        setEditando((prev) => ({
-                          ...prev,
-                          [item.id]: {
-                            ...prev[item.id],
-                            localizacion: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
-                    >
-                      <option value="">Sin localización</option>
-                      {localizaciones
-                        .filter((loc) => loc !== "")
-                        .map((loc) => (
-                          <option key={loc}>{loc}</option>
-                        ))}
-                    </select>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => guardarPerfil(perfil.id)}
+                        className="border border-stone-900 bg-stone-900 px-3 py-2 text-sm uppercase tracking-[0.12em] text-amber-50"
+                      >
+                        Guardar
+                      </button>
 
-                    <input
-                      type="number"
-                      min={0}
-                      value={editando[item.id]?.coste ?? 0}
-                      onChange={(e) =>
-                        setEditando((prev) => ({
-                          ...prev,
-                          [item.id]: {
-                            ...prev[item.id],
-                            coste: Number(e.target.value) || 0,
-                          },
-                        }))
-                      }
-                      className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
-                      placeholder="Coste"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => guardarItem(item.id)}
-                      className="border border-stone-900 bg-stone-900 px-3 py-2 text-sm uppercase tracking-[0.12em] text-amber-50"
-                    >
-                      Guardar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => eliminarItem(item.id)}
-                      className="border border-red-900/40 px-3 py-2 text-sm text-red-900"
-                    >
-                      Eliminar
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => eliminarPerfil(perfil.id)}
+                        className="border border-red-900/40 px-3 py-2 text-sm text-red-900"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
 
-            {items.length === 0 ? (
+            {perfiles.length === 0 ? (
               <p className="text-sm text-stone-700">
-                Aún no hay objetos en el catálogo.
+                Aún no hay perfiles creados.
               </p>
             ) : null}
           </div>
