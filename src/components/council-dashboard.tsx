@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { ImageDropzone } from "./image-dropzone";
-import type { CatalogItem, Profile } from "@/types/domain";
+import type { CatalogItem, Profile } from "../types/domain";
 
 type CouncilDashboardProps = {
   profiles: Profile[];
@@ -532,4 +532,3 @@ export function CouncilDashboard({
     </main>
   );
 }
-"
