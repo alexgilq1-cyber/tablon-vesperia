@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Perfil = {
@@ -23,10 +23,116 @@ type AppConfig = {
   fondo_admin_url: string | null;
 };
 
+type DropzoneProps = {
+  label: string;
+  currentImageUrl?: string | null;
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+};
+
+function DropzoneImagen({
+  label,
+  currentImageUrl = null,
+  file,
+  onFileChange,
+}: DropzoneProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const previewUrl = useMemo(() => {
+    if (!file) return null;
+    return URL.createObjectURL(file);
+  }, [file]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  function handleFile(nextFile: File | null) {
+    if (!nextFile) return;
+    if (!nextFile.type.startsWith("image/")) return;
+    onFileChange(nextFile);
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-stone-700">{label}</p>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+      />
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          handleFile(e.dataTransfer.files?.[0] ?? null);
+        }}
+        className={`w-full border border-dashed px-4 py-5 text-center transition ${
+          dragging
+            ? "border-amber-900 bg-amber-100/70"
+            : "border-amber-950/30 bg-white/70 hover:bg-white/80"
+        }`}
+      >
+        <div className="mx-auto mb-3 h-24 w-24 overflow-hidden border-[3px] border-amber-950/30 bg-amber-100">
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="Vista previa"
+              className="h-full w-full object-cover"
+            />
+          ) : currentImageUrl ? (
+            <img
+              src={currentImageUrl}
+              alt="Imagen actual"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-stone-700">
+              Sin imagen
+            </div>
+          )}
+        </div>
+
+        <p className="text-sm text-stone-800">
+          Arrastra una imagen aquí o haz clic para subirla
+        </p>
+      </button>
+
+      {file ? (
+        <div className="flex items-center justify-between gap-2 text-xs text-stone-700">
+          <span className="truncate">{file.name}</span>
+          <button
+            type="button"
+            onClick={() => onFileChange(null)}
+            className="border border-amber-950/25 px-3 py-2"
+          >
+            Quitar
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [perfiles, setPerfiles] = useState<Perfil[]>([]);
   const [nombre, setNombre] = useState("");
-  const [imagenUrl, setImagenUrl] = useState("");
   const [puntos, setPuntos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -34,6 +140,26 @@ export default function AdminPage() {
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
   const [fondoInicioUrl, setFondoInicioUrl] = useState("");
   const [fondoAdminUrl, setFondoAdminUrl] = useState("");
+  const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
+  const [archivosEditar, setArchivosEditar] = useState<Record<string, File | null>>({});
+
+  async function subirImagen(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json()) as { error?: string; url?: string };
+
+    if (!response.ok || !payload.url) {
+      throw new Error(payload.error ?? "No se pudo subir la imagen.");
+    }
+
+    return payload.url;
+  }
 
   async function cargarPerfiles() {
     const { data, error } = await supabase
@@ -58,6 +184,7 @@ export default function AdminPage() {
       };
     }
     setEditando(mapa);
+    setArchivosEditar({});
   }
 
   async function cargarAjustes() {
@@ -82,24 +209,35 @@ export default function AdminPage() {
     setLoading(true);
     setMensaje("");
 
-    const { error } = await supabase.from("perfiles").insert({
-      nombre,
-      imagen_url: imagenUrl || null,
-      puntos_esencia: Math.max(0, puntos),
-    });
+    try {
+      let imagenUrl: string | null = null;
 
-    setLoading(false);
+      if (archivoNuevo) {
+        imagenUrl = await subirImagen(archivoNuevo);
+      }
 
-    if (error) {
-      setMensaje(`No se pudo crear el perfil: ${error.message}`);
-      return;
+      const { error } = await supabase.from("perfiles").insert({
+        nombre,
+        imagen_url: imagenUrl,
+        puntos_esencia: Math.max(0, puntos),
+      });
+
+      setLoading(false);
+
+      if (error) {
+        setMensaje(`No se pudo crear el perfil: ${error.message}`);
+        return;
+      }
+
+      setNombre("");
+      setPuntos(0);
+      setArchivoNuevo(null);
+      setMensaje("Perfil creado correctamente.");
+      await cargarPerfiles();
+    } catch (error) {
+      setLoading(false);
+      setMensaje(error instanceof Error ? error.message : "No se pudo crear el perfil.");
     }
-
-    setNombre("");
-    setImagenUrl("");
-    setPuntos(0);
-    setMensaje("Perfil creado correctamente.");
-    await cargarPerfiles();
   }
 
   async function guardarPerfil(id: string) {
@@ -108,22 +246,33 @@ export default function AdminPage() {
 
     setMensaje("");
 
-    const { error } = await supabase
-      .from("perfiles")
-      .update({
-        nombre: datos.nombre,
-        imagen_url: datos.imagen_url || null,
-        puntos_esencia: Math.max(0, Number(datos.puntos_esencia) || 0),
-      })
-      .eq("id", id);
+    try {
+      let imagenFinal = datos.imagen_url || null;
+      const archivo = archivosEditar[id];
 
-    if (error) {
-      setMensaje(`No se pudo guardar el perfil: ${error.message}`);
-      return;
+      if (archivo) {
+        imagenFinal = await subirImagen(archivo);
+      }
+
+      const { error } = await supabase
+        .from("perfiles")
+        .update({
+          nombre: datos.nombre,
+          imagen_url: imagenFinal,
+          puntos_esencia: Math.max(0, Number(datos.puntos_esencia) || 0),
+        })
+        .eq("id", id);
+
+      if (error) {
+        setMensaje(`No se pudo guardar el perfil: ${error.message}`);
+        return;
+      }
+
+      setMensaje("Perfil actualizado correctamente.");
+      await cargarPerfiles();
+    } catch (error) {
+      setMensaje(error instanceof Error ? error.message : "No se pudo guardar el perfil.");
     }
-
-    setMensaje("Perfil actualizado correctamente.");
-    await cargarPerfiles();
   }
 
   async function guardarAjustes(e: React.FormEvent) {
@@ -309,12 +458,11 @@ export default function AdminPage() {
               className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
             />
 
-            <input
-              type="text"
-              value={imagenUrl}
-              onChange={(e) => setImagenUrl(e.target.value)}
-              placeholder="URL de la imagen"
-              className="w-full border border-amber-950/30 bg-white/75 px-4 py-3 text-stone-900 outline-none"
+            <DropzoneImagen
+              label="Imagen del personaje"
+              file={archivoNuevo}
+              currentImageUrl={null}
+              onFileChange={setArchivoNuevo}
             />
 
             <input
@@ -370,20 +518,16 @@ export default function AdminPage() {
                     placeholder="Nombre"
                   />
 
-                  <input
-                    type="text"
-                    value={editando[perfil.id]?.imagen_url ?? ""}
-                    onChange={(e) =>
-                      setEditando((prev) => ({
+                  <DropzoneImagen
+                    label="Imagen del personaje"
+                    file={archivosEditar[perfil.id] ?? null}
+                    currentImageUrl={editando[perfil.id]?.imagen_url ?? ""}
+                    onFileChange={(file) =>
+                      setArchivosEditar((prev) => ({
                         ...prev,
-                        [perfil.id]: {
-                          ...prev[perfil.id],
-                          imagen_url: e.target.value,
-                        },
+                        [perfil.id]: file,
                       }))
                     }
-                    className="w-full border border-amber-950/30 bg-white/80 px-3 py-2 text-stone-900 outline-none"
-                    placeholder="URL de la imagen"
                   />
 
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
