@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -334,29 +333,29 @@ export default function AdminPage() {
       }
     >
       <div className="mb-6 flex flex-wrap gap-3">
-        <Link
+        <a
           href="/"
           className="inline-block border border-amber-200/30 bg-black/25 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
           style={{ textDecoration: "none" }}
         >
           Volver al tablón
-        </Link>
+        </a>
 
-        <Link
+        <a
           href="/admin/catalogo"
           className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
           style={{ textDecoration: "none" }}
         >
           Editar catálogo
-        </Link>
+        </a>
 
-        <Link
+        <a
           href="/admin/historial"
           className="inline-block border border-stone-900 bg-stone-900 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
           style={{ textDecoration: "none" }}
         >
           Historial
-        </Link>
+        </a>
 
         <button
           type="button"
