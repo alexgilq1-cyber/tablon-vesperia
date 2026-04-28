@@ -11,22 +11,51 @@ type Perfil = {
   descripcion_personaje: string | null;
 };
 
+type AppConfig = {
+  id: number;
+  fondo_inicio_url: string | null;
+  fondo_admin_url: string | null;
+};
+
 export default async function HomePage() {
   const supabase = createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("perfiles")
-    .select("id, nombre, imagen_url, puntos_esencia, descripcion_personaje")
-    .order("nombre", { ascending: true });
+  const [{ data: perfilesData, error: perfilesError }, { data: configData }] =
+    await Promise.all([
+      supabase
+        .from("perfiles")
+        .select("id, nombre, imagen_url, puntos_esencia, descripcion_personaje")
+        .order("nombre", { ascending: true }),
+      supabase
+        .from("app_config")
+        .select("id, fondo_inicio_url, fondo_admin_url")
+        .eq("id", 1)
+        .maybeSingle(),
+    ]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (perfilesError) {
+    throw new Error(perfilesError.message);
   }
 
-  const perfiles = (data ?? []) as Perfil[];
+  const perfiles = (perfilesData ?? []) as Perfil[];
+  const config = configData as AppConfig | null;
+
+  const customBackground = config?.fondo_inicio_url?.trim() || "";
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <main
+      className="mx-auto min-h-screen max-w-7xl px-4 py-10 sm:px-6 lg:px-8"
+      style={
+        customBackground
+          ? {
+              backgroundImage: `linear-gradient(rgba(20,10,6,0.55), rgba(20,10,6,0.55)), url("${customBackground}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
+            }
+          : undefined
+      }
+    >
       <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/admin/login"
