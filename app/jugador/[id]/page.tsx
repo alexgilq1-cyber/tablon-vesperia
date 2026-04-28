@@ -11,6 +11,7 @@ type Perfil = {
   imagen_url: string | null;
   puntos_esencia: number;
   descripcion_personaje: string | null;
+  fondo_perfil_url: string | null;
 };
 
 type ItemCatalogo = {
@@ -77,11 +78,13 @@ export default function JugadorPage() {
   const [nombre, setNombre] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
   const [descripcionPersonaje, setDescripcionPersonaje] = useState("");
+  const [fondoPerfilUrl, setFondoPerfilUrl] = useState("");
   const [puntos, setPuntos] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   const [mostrarInventario, setMostrarInventario] = useState(false);
+  const [mostrarAjustes, setMostrarAjustes] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState("Todas");
   const [filtroLocalizacion, setFiltroLocalizacion] = useState("Todas");
 
@@ -96,7 +99,7 @@ export default function JugadorPage() {
     ] = await Promise.all([
       supabase
         .from("perfiles")
-        .select("id, nombre, imagen_url, puntos_esencia, descripcion_personaje")
+        .select("id, nombre, imagen_url, puntos_esencia, descripcion_personaje, fondo_perfil_url")
         .eq("id", id)
         .single(),
       supabase
@@ -135,6 +138,7 @@ export default function JugadorPage() {
     setNombre(perfilCargado.nombre);
     setImagenUrl(perfilCargado.imagen_url ?? "");
     setDescripcionPersonaje(perfilCargado.descripcion_personaje ?? "");
+    setFondoPerfilUrl(perfilCargado.fondo_perfil_url ?? "");
     setPuntos(perfilCargado.puntos_esencia);
     setLoading(false);
   }
@@ -166,6 +170,27 @@ export default function JugadorPage() {
     setMensaje("Perfil actualizado correctamente.");
     await cargarDatos();
     setMostrarPerfil(false);
+  }
+
+  async function guardarAjustes(e: React.FormEvent) {
+    e.preventDefault();
+    setMensaje("");
+
+    const { error } = await supabase
+      .from("perfiles")
+      .update({
+        fondo_perfil_url: fondoPerfilUrl || null,
+      })
+      .eq("id", id);
+
+    if (error) {
+      setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
+      return;
+    }
+
+    setMensaje("Ajustes guardados correctamente.");
+    await cargarDatos();
+    setMostrarAjustes(false);
   }
 
   async function guardarPuntos(e: React.FormEvent) {
@@ -282,9 +307,23 @@ export default function JugadorPage() {
     );
   }
 
+  const customPlayerBackground = fondoPerfilUrl.trim();
+
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mb-6">
+    <main
+      className="mx-auto min-h-screen max-w-7xl px-4 py-10 sm:px-6 lg:px-8"
+      style={
+        customPlayerBackground
+          ? {
+              backgroundImage: `linear-gradient(rgba(20,10,6,0.55), rgba(20,10,6,0.55)), url("${customPlayerBackground}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
+            }
+          : undefined
+      }
+    >
+      <div className="mb-6 flex justify-between gap-3">
         <Link
           href="/"
           className="inline-block border border-amber-200/30 bg-black/25 px-4 py-3 text-sm uppercase tracking-[0.18em] text-amber-50"
@@ -292,7 +331,55 @@ export default function JugadorPage() {
         >
           Volver al tablón
         </Link>
+
+        <button
+          type="button"
+          onClick={() => setMostrarAjustes((prev) => !prev)}
+          className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+        >
+          Ajustes
+        </button>
       </div>
+
+      {mostrarAjustes ? (
+        <form
+          onSubmit={guardarAjustes}
+          className="mb-8 border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
+        >
+          <h2
+            className="text-3xl"
+            style={{ fontFamily: "var(--font-almendra)" }}
+          >
+            Ajustes del perfil
+          </h2>
+
+          <div className="mt-5 space-y-4">
+            <input
+              type="text"
+              value={fondoPerfilUrl}
+              onChange={(e) => setFondoPerfilUrl(e.target.value)}
+              placeholder="URL del fondo de tu interfaz"
+              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="submit"
+              className="border border-stone-900 bg-stone-900 px-4 py-2 text-xs uppercase tracking-[0.18em] text-amber-50"
+            >
+              Guardar ajustes
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarAjustes(false)}
+              className="border border-amber-950/30 px-4 py-2 text-xs uppercase tracking-[0.18em] text-stone-900"
+            >
+              Cerrar
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.8fr]">
         <div className="border border-amber-950/45 bg-[linear-gradient(180deg,rgba(248,237,206,0.97),rgba(228,204,149,0.99))] p-6 text-stone-900 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
