@@ -6,10 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get("vesperia_admin");
-
-  if (adminCookie?.value !== "ok") {
-    return NextResponse.json({ error: "Acceso no autorizado." }, { status: 401 });
-  }
+  const isAdmin = adminCookie?.value === "ok";
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -31,6 +28,26 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file");
+  const perfilId = formData.get("perfilId");
+
+  if (!isAdmin) {
+    if (
+      typeof perfilId !== "string" ||
+      !/^[a-zA-Z0-9_-]{1,80}$/.test(perfilId)
+    ) {
+      return NextResponse.json({ error: "Acceso no autorizado." }, { status: 401 });
+    }
+
+    const { data: perfil, error: perfilError } = await supabase
+      .from("perfiles")
+      .select("id")
+      .eq("id", perfilId)
+      .maybeSingle();
+
+    if (perfilError || !perfil) {
+      return NextResponse.json({ error: "Acceso no autorizado." }, { status: 401 });
+    }
+  }
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No se recibió ningún archivo." }, { status: 400 });
@@ -48,7 +65,10 @@ export async function POST(request: Request) {
   }
 
   const extension = file.name.split(".").pop()?.toLowerCase() || "png";
-  const path = `perfiles/${randomUUID()}.${extension}`;
+  const path =
+    !isAdmin && typeof perfilId === "string"
+      ? `perfiles/${perfilId}/fondos/${randomUUID()}.${extension}`
+      : `perfiles/${randomUUID()}.${extension}`;
   const arrayBuffer = await file.arrayBuffer();
 
   const { error } = await supabase.storage.from(bucket).upload(path, arrayBuffer, {
