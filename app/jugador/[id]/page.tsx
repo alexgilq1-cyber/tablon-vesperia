@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ImageDropzone } from "@/src/components/image-dropzone";
 
 type Perfil = {
   id: string;
@@ -87,6 +88,26 @@ export default function JugadorPage() {
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState("Todas");
   const [filtroLocalizacion, setFiltroLocalizacion] = useState("Todas");
+  const [archivoFondoPerfil, setArchivoFondoPerfil] = useState<File | null>(null);
+
+  async function subirImagen(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("perfilId", id);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json()) as { error?: string; url?: string };
+
+    if (!response.ok || !payload.url) {
+      throw new Error(payload.error ?? "No se pudo subir la imagen.");
+    }
+
+    return payload.url;
+  }
 
   async function cargarDatos() {
     setLoading(true);
@@ -176,21 +197,33 @@ export default function JugadorPage() {
     e.preventDefault();
     setMensaje("");
 
-    const { error } = await supabase
-      .from("perfiles")
-      .update({
-        fondo_perfil_url: fondoPerfilUrl || null,
-      })
-      .eq("id", id);
+    try {
+      let fondoPerfilFinal = fondoPerfilUrl || null;
 
-    if (error) {
-      setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
-      return;
+      if (archivoFondoPerfil) {
+        fondoPerfilFinal = await subirImagen(archivoFondoPerfil);
+      }
+
+      const { error } = await supabase
+        .from("perfiles")
+        .update({
+          fondo_perfil_url: fondoPerfilFinal,
+        })
+        .eq("id", id);
+
+      if (error) {
+        setMensaje(`No se pudieron guardar los ajustes: ${error.message}`);
+        return;
+      }
+
+      setFondoPerfilUrl(fondoPerfilFinal ?? "");
+      setArchivoFondoPerfil(null);
+      setMensaje("Ajustes guardados correctamente.");
+      await cargarDatos();
+      setMostrarAjustes(false);
+    } catch (error) {
+      setMensaje(error instanceof Error ? error.message : "No se pudieron guardar los ajustes.");
     }
-
-    setMensaje("Ajustes guardados correctamente.");
-    await cargarDatos();
-    setMostrarAjustes(false);
   }
 
   async function guardarPuntos(e: React.FormEvent) {
@@ -354,12 +387,11 @@ export default function JugadorPage() {
           </h2>
 
           <div className="mt-5 space-y-4">
-            <input
-              type="text"
-              value={fondoPerfilUrl}
-              onChange={(e) => setFondoPerfilUrl(e.target.value)}
-              placeholder="URL del fondo de tu interfaz"
-              className="w-full border border-amber-950/30 bg-white/80 px-4 py-3 text-stone-900 outline-none"
+            <ImageDropzone
+              label="Fondo de tu perfil"
+              file={archivoFondoPerfil}
+              currentImageUrl={fondoPerfilUrl}
+              onFileChange={setArchivoFondoPerfil}
             />
           </div>
 
